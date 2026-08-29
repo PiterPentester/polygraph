@@ -1,5 +1,7 @@
 # 🕵️‍♂️ Polygraph — Multiplayer Spy Game Telegram Bot
 
+![Logo](assets/logo.jpg)
+
 **Polygraph** is a multiplayer party game bot for Telegram (inspired by the classic Spyfall / "Знахідка для шпигуна" mechanics).
 
 Players join a shared room via an invite link. In each round, innocent players receive a **Main Question** (Question A), while the secret spy receives a subtly different **Spy Question** (Question B). Everyone submits their answers privately to the bot. Once all answers are collected, the bot reveals the main question along with all submitted answers. Players then discuss and vote to unmask and kick the spy!
