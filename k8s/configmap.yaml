@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: polygraph-config
+  labels:
+    app: polygraph-bot
+data:
+  LOG_LEVEL: "INFO"
+  ASSETS_DIR: "/app/assets"

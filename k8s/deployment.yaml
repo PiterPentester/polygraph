@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: polygraph-bot
+  labels:
+    app: polygraph-bot
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: polygraph-bot
+  template:
+    metadata:
+      labels:
+        app: polygraph-bot
+    spec:
+      containers:
+        - name: bot
+          image: ghcr.io/piterpentester/polygraph:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: polygraph-config
+            - secretRef:
+                name: polygraph-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            readOnlyRootFilesystem: false
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
