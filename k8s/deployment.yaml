@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: bot
-          image: ghcr.io/piterpentester/polygraph:bddc4fa0
+          image: ghcr.io/piterpentester/polygraph:81b8256c
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:
