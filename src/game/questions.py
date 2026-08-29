@@ -106,12 +106,18 @@ class QuestionManager:
         except Exception as e:
             logger.error(f"Error loading questions from {file_path}: {e}")
 
+    def get_categories(self) -> list[str]:
+        """Return a sorted list of loaded category names."""
+        if not self.categories:
+            self.load_all()
+        return sorted(self.categories.keys())
+
     def get_random_pair(
         self, used_ids: set[str] | None = None, category: str | None = None
     ) -> QuestionPair:
         """
-        Get an unused question pair.
-        If all question pairs have been used in the session, falls back to the full pool.
+        Get an unused question pair from the specified category or a randomly selected category/file.
+        If all question pairs have been used in the session, falls back to recycling the pool.
         """
         if not self.all_pairs:
             self.load_all()
@@ -126,15 +132,32 @@ class QuestionManager:
             )
 
         used_ids = used_ids or set()
-        pool = (
-            self.categories.get(category, self.all_pairs)
-            if category
-            else self.all_pairs
-        )
+
+        if category and category in self.categories:
+            pool = self.categories[category]
+        elif category and category not in self.categories:
+            pool = self.all_pairs
+        else:
+            # Pick a category first to ensure questions are grouped by category
+            cats_with_available = [
+                cat
+                for cat, pairs in self.categories.items()
+                if any(p.id not in used_ids for p in pairs)
+            ]
+            chosen_cat = (
+                random.choice(cats_with_available)
+                if cats_with_available
+                else (
+                    random.choice(list(self.categories.keys()))
+                    if self.categories
+                    else None
+                )
+            )
+            pool = self.categories[chosen_cat] if chosen_cat else self.all_pairs
 
         available = [p for p in pool if p.id not in used_ids]
         if not available:
-            # All questions used in this session; recycle pool
+            # All questions used in this session/category; recycle pool
             available = pool
 
         return random.choice(available)

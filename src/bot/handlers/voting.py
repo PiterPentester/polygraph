@@ -21,6 +21,10 @@ async def handle_cast_vote(
         return
 
     target_id = int(callback.data.split(":")[1])
+    if target_id == user.id:
+        await callback.answer("Ви не можете голосувати проти себе!", show_alert=True)
+        return
+
     target_player = room.players.get(target_id)
     if not target_player:
         await callback.answer("Гравця не знайдено.", show_alert=True)

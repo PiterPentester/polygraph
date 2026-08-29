@@ -71,3 +71,36 @@ def test_question_manager_paired_csv():
         assert pair1.main_question in ["Яка твоя улюблена страва?", "Де ти мрієш жити?"]
         if pair1.main_question == "Яка твоя улюблена страва?":
             assert pair1.spy_question == "Який твій улюблений напій?"
+
+
+def test_question_manager_get_categories_and_selection():
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = Path(tmp_dir)
+        (tmp_path / "spy_questions_food.csv").write_text(
+            "main_question,spy_question\nFood Q1,Food S1\nFood Q2,Food S2\n",
+            encoding="utf-8",
+        )
+        (tmp_path / "spy_questions_movies.csv").write_text(
+            "main_question,spy_question\nMovie Q1,Movie S1\nMovie Q2,Movie S2\n",
+            encoding="utf-8",
+        )
+
+        manager = QuestionManager(assets_dir=tmp_path)
+        manager.load_all()
+
+        categories = manager.get_categories()
+        assert "Food" in categories
+        assert "Movies" in categories
+
+        # Selection with explicit category
+        pair_food = manager.get_random_pair(category="Food")
+        assert pair_food.category == "Food"
+        assert pair_food.main_question.startswith("Food")
+
+        pair_movie = manager.get_random_pair(category="Movies")
+        assert pair_movie.category == "Movies"
+        assert pair_movie.main_question.startswith("Movie")
+
+        # Selection without explicit category still returns a valid pair from one category
+        pair_any = manager.get_random_pair()
+        assert pair_any.category in ["Food", "Movies"]

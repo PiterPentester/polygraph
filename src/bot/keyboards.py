@@ -29,6 +29,13 @@ def lobby_kb(room: Room, user_id: int) -> InlineKeyboardMarkup:
                     text="🕵️ К-сть шпигунів", callback_data="change_spies"
                 ),
                 InlineKeyboardButton(
+                    text="📂 Категорія", callback_data="change_category"
+                ),
+            ]
+        )
+        buttons.append(
+            [
+                InlineKeyboardButton(
                     text="👢 Вигнати гравця", callback_data="kick_player_menu"
                 ),
             ]
@@ -62,6 +69,37 @@ def spy_count_kb(room: Room) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
+def category_kb(
+    categories: list[str], current_category: str | None
+) -> InlineKeyboardMarkup:
+    buttons = []
+    random_label = "🎲 Випадкова" + (" ✅" if current_category is None else "")
+    buttons.append(
+        [
+            InlineKeyboardButton(
+                text=random_label, callback_data="set_category:__random__"
+            )
+        ]
+    )
+
+    row = []
+    for cat in categories:
+        label = f"📁 {cat}" + (" ✅" if current_category == cat else "")
+        row.append(
+            InlineKeyboardButton(text=label, callback_data=f"set_category:{cat}")
+        )
+        if len(row) == 2:
+            buttons.append(row)
+            row = []
+    if row:
+        buttons.append(row)
+
+    buttons.append(
+        [InlineKeyboardButton(text="🔙 Назад до лобі", callback_data="back_to_lobby")]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
 def kick_player_kb(room: Room) -> InlineKeyboardMarkup:
     buttons = []
     for p in room.players.values():
@@ -82,7 +120,9 @@ def kick_player_kb(room: Room) -> InlineKeyboardMarkup:
 def voting_kb(room: Room, voter_id: int) -> InlineKeyboardMarkup:
     buttons = []
     for p in room.players.values():
-        # Allow voting for anyone except optionally show who they currently voted for
+        # Prevent self-voting
+        if p.id == voter_id:
+            continue
         status = (
             " (Ваш вибір)"
             if room.players.get(voter_id) and room.players[voter_id].voted_for == p.id

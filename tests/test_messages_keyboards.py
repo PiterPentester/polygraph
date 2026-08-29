@@ -61,6 +61,7 @@ def test_keyboard_generation():
     ]
     assert "start_game" in callback_datas
     assert "change_spies" in callback_datas
+    assert "change_category" in callback_datas
     assert "kick_player_menu" in callback_datas
     assert "leave_room" in callback_datas
 
@@ -76,10 +77,10 @@ def test_keyboard_generation():
     assert "set_spies:1" in spy_datas
     assert "set_spies:2" in spy_datas
 
-    # Voting keyboard
+    # Voting keyboard - voter 1 cannot vote for voter 1
     vote_kb = keyboards.voting_kb(room, voter_id=1)
     vote_datas = [btn.callback_data for row in vote_kb.inline_keyboard for btn in row]
-    assert "vote:1" in vote_datas
+    assert "vote:1" not in vote_datas
     assert "vote:2" in vote_datas
     assert "vote:3" in vote_datas
 
@@ -89,3 +90,14 @@ def test_keyboard_generation():
         btn.callback_data for row in game_over_host.inline_keyboard for btn in row
     ]
     assert "play_again" in go_datas
+
+
+def test_category_keyboard():
+    categories = ["Food", "Hobbies", "Movies"]
+    cat_kb = keyboards.category_kb(categories, current_category="Hobbies")
+    cat_datas = [btn.callback_data for row in cat_kb.inline_keyboard for btn in row]
+    assert "set_category:__random__" in cat_datas
+    assert "set_category:Food" in cat_datas
+    assert "set_category:Hobbies" in cat_datas
+    assert "set_category:Movies" in cat_datas
+    assert "back_to_lobby" in cat_datas

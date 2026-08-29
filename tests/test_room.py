@@ -103,9 +103,10 @@ def test_gameplay_lifecycle_innocents_win(mock_question_manager):
     room.start_voting()
     assert room.phase == GamePhase.VOTING
 
-    # Everyone votes for the spy
-    for uid in [100, 200, 300]:
-        assert room.cast_vote(voter_id=uid, target_id=spy.id) is True
+    # Innocents vote for the spy, spy votes for an innocent
+    for inc in innocents:
+        assert room.cast_vote(voter_id=inc.id, target_id=spy.id) is True
+    assert room.cast_vote(voter_id=spy.id, target_id=innocents[0].id) is True
 
     assert room.all_votes_cast() is True
 
@@ -128,18 +129,47 @@ def test_gameplay_lifecycle_spy_wins_on_wrong_vote(mock_question_manager):
         room.add_player(Player(id=uid, full_name=f"Player {uid}"))
 
     room.start_round(mock_question_manager)
+    spies = [p for p in room.players.values() if p.is_spy]
     innocents = [p for p in room.players.values() if not p.is_spy]
     innocent_target = innocents[0]
+    other_players = [p for p in room.players.values() if p.id != innocent_target.id]
 
     for uid in [100, 200, 300]:
         room.submit_answer(uid, f"Ans {uid}")
 
     room.start_voting()
 
-    # Players mistakenly vote for innocent
-    for uid in [100, 200, 300]:
-        room.cast_vote(voter_id=uid, target_id=innocent_target.id)
+    # Other players mistakenly vote for innocent_target
+    for p in other_players:
+        assert room.cast_vote(voter_id=p.id, target_id=innocent_target.id) is True
+    # innocent_target votes for the spy or someone else
+    assert room.cast_vote(voter_id=innocent_target.id, target_id=spies[0].id) is True
 
     result = room.resolve_votes()
     assert result.innocents_won is False
     assert result.kicked_player.id == innocent_target.id
+
+
+def test_prevent_self_vote():
+    room = Room(code="TEST03", host_id=100)
+    for uid in [100, 200, 300]:
+        room.add_player(Player(id=uid, full_name=f"Player {uid}"))
+
+    room.start_voting()
+    # Cannot vote for self
+    assert room.cast_vote(voter_id=100, target_id=100) is False
+    # Can vote for another player
+    assert room.cast_vote(voter_id=100, target_id=200) is True
+
+
+def test_room_category_selection(mock_question_manager):
+    room = Room(code="TEST04", host_id=100)
+    for uid in [100, 200, 300]:
+        room.add_player(Player(id=uid, full_name=f"Player {uid}"))
+
+    assert room.category is None
+    room.set_category("Test")
+    assert room.category == "Test"
+
+    room.start_round(mock_question_manager)
+    assert room.category == "Test"

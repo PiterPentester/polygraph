@@ -40,10 +40,13 @@ def lobby_text(room: Room, bot_username: str = "") -> str:
         else f"<code>{room.code}</code>"
     )
 
+    category_str = room.category if room.category else "🎲 Випадкова (при старті)"
+
     return (
         f"🏠 <b>Кімната:</b> <code>{room.code}</code>\n"
         f"🔗 <b>Посилання для запрошення:</b>\n{invite_link}\n\n"
         f"👥 <b>Гравці ({len(room.players)}):</b>\n{players_list}\n\n"
+        f"📂 <b>Категорія:</b> {category_str}\n"
         f"🕵️ <b>Кількість шпигунів:</b> {room.spy_count}\n"
         f"📦 <b>Зіграно запитань:</b> {len(room.used_question_ids)}\n\n"
         f"<i>Для старту потрібно щонайменше {room.spy_count + 1} гравців.</i>"

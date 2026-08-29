@@ -106,6 +106,60 @@ async def handle_set_spies(
     )
 
 
+@router.callback_query(lambda c: c.data == "change_category")
+async def handle_change_category(
+    callback: CallbackQuery,
+    room_manager: RoomManager,
+    question_manager: QuestionManager,
+):
+    user = callback.from_user
+    room = room_manager.get_player_room(user.id)
+    if not room or not room.is_host(user.id):
+        await callback.answer("Тільки хост може змінювати категорію.", show_alert=True)
+        return
+
+    categories = question_manager.get_categories()
+    await callback.message.edit_text(
+        "📂 <b>Оберіть категорію запитань для кімнати:</b>\n"
+        "<i>Усі запитання раундів обиратимуться з однієї вибраної теми.</i>",
+        reply_markup=keyboards.category_kb(categories, room.category),
+        parse_mode="HTML",
+    )
+    await callback.answer()
+
+
+@router.callback_query(lambda c: c.data and c.data.startswith("set_category:"))
+async def handle_set_category(
+    callback: CallbackQuery,
+    bot: Bot,
+    room_manager: RoomManager,
+):
+    user = callback.from_user
+    room = room_manager.get_player_room(user.id)
+    if not room or not room.is_host(user.id):
+        await callback.answer(
+            "Тільки хост може змінювати налаштування.", show_alert=True
+        )
+        return
+
+    raw_cat = callback.data.split(":", 1)[1]
+    if raw_cat == "__random__":
+        room.set_category(None)
+        await callback.answer("Встановлено випадкову категорію!")
+    else:
+        room.set_category(raw_cat)
+        await callback.answer(f"Встановлено категорію: {raw_cat}!")
+
+    bot_info = await bot.get_me()
+    bot_username = bot_info.username or settings.bot_username
+
+    await callback.message.edit_text(
+        messages.lobby_text(room, bot_username=bot_username),
+        reply_markup=keyboards.lobby_kb(room, user.id),
+        parse_mode="HTML",
+    )
+
+
 @router.callback_query(lambda c: c.data == "kick_player_menu")
 async def handle_kick_menu(callback: CallbackQuery, room_manager: RoomManager):
     user = callback.from_user

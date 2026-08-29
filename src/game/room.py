@@ -12,6 +12,7 @@ class Room:
         self.host_id = host_id
         self.players: dict[int, Player] = {}
         self.spy_count: int = 1
+        self.category: str | None = None
         self.phase: GamePhase = GamePhase.LOBBY
         self.used_question_ids: set[str] = set()
         self.main_question: str = ""
@@ -52,6 +53,9 @@ class Room:
         self.spy_count = count
         return True
 
+    def set_category(self, category: str | None) -> None:
+        self.category = category
+
     def start_round(self, question_manager: QuestionManager) -> bool:
         if len(self.players) < 3:
             logger.warning(
@@ -61,8 +65,12 @@ class Room:
             if len(self.players) <= self.spy_count:
                 return False
 
-        pair = question_manager.get_random_pair(used_ids=self.used_question_ids)
+        pair = question_manager.get_random_pair(
+            used_ids=self.used_question_ids, category=self.category
+        )
         self.used_question_ids.add(pair.id)
+        if self.category is None:
+            self.category = pair.category
         self.main_question = pair.main_question
         self.spy_question = pair.spy_question
 
@@ -113,6 +121,8 @@ class Room:
         if self.phase != GamePhase.VOTING:
             return False
         if voter_id not in self.players or target_id not in self.players:
+            return False
+        if voter_id == target_id:
             return False
 
         self.players[voter_id].voted_for = target_id
