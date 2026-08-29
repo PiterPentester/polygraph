@@ -1,0 +1,6 @@
+{
+  "name": "Polygraph Landing Page",
+  "description": "Landing page for Polygraph, a multiplayer party game bot for Telegram.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
