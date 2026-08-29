@@ -16,6 +16,26 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+async def cleanup_stale_rooms_loop(
+    room_manager: RoomManager,
+    interval_seconds: float = 1800,
+    ttl_seconds: float = 6 * 3600,
+) -> None:
+    """Periodically cleans up rooms that have been inactive beyond the TTL."""
+    while True:
+        try:
+            await asyncio.sleep(interval_seconds)
+            cleaned = room_manager.cleanup_stale_rooms(max_age_seconds=ttl_seconds)
+            if cleaned:
+                logger.info(
+                    f"Cleaned up {len(cleaned)} stale room(s): {', '.join(cleaned)}"
+                )
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error(f"Error during stale room cleanup: {e}")
+
+
 async def main():
     if not settings.bot_token:
         logger.error(
@@ -60,6 +80,15 @@ async def main():
 
     logger.info("Bot started successfully. Listening for updates...")
 
+    # Start periodic stale room cleanup background task
+    cleanup_task = asyncio.create_task(
+        cleanup_stale_rooms_loop(
+            room_manager=room_manager,
+            interval_seconds=settings.room_cleanup_interval_seconds,
+            ttl_seconds=settings.room_ttl_seconds,
+        )
+    )
+
     # Start long-polling
     try:
         await bot.delete_webhook(drop_pending_updates=True)
@@ -67,6 +96,13 @@ async def main():
     except (KeyboardInterrupt, SystemExit):
         logger.info("Received termination signal.")
     finally:
+        logger.info("Cancelling background cleanup task...")
+        cleanup_task.cancel()
+        try:
+            await cleanup_task
+        except asyncio.CancelledError:
+            pass
+
         logger.info("Shutting down bot session...")
         await bot.session.close()
         logger.info("Shutdown complete.")

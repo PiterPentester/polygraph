@@ -173,3 +173,22 @@ def test_room_category_selection(mock_question_manager):
 
     room.start_round(mock_question_manager)
     assert room.category == "Test"
+
+
+def test_room_timestamp_and_staleness():
+    room = Room(code="STALE1", host_id=100)
+    assert hasattr(room, "created_at")
+    assert hasattr(room, "updated_at")
+    assert room.created_at > 0
+    assert room.updated_at >= room.created_at
+
+    # Check is_stale
+    assert room.is_stale(max_age_seconds=6 * 3600) is False
+
+    # Simulate 6 hours + 1 second passing
+    room.updated_at = room.created_at - (6 * 3600 + 1)
+    assert room.is_stale(max_age_seconds=6 * 3600) is True
+
+    # Calling touch should refresh updated_at
+    room.touch()
+    assert room.is_stale(max_age_seconds=6 * 3600) is False

@@ -8,6 +8,10 @@ class Settings(BaseSettings):
     assets_dir: Path = Path("assets")
     log_level: str = "INFO"
 
+    # Room cleanup / lifecycle configuration
+    room_ttl_seconds: int = 6 * 3600  # 6 hours
+    room_cleanup_interval_seconds: int = 1800  # 30 minutes
+
     # Webhook optional configs for k8s / production
     webhook_mode: bool = False
     webhook_url: str = ""

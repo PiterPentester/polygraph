@@ -1,5 +1,6 @@
 import logging
 import random
+import time
 from game.models import GamePhase, GameResult, Player
 from game.questions import QuestionManager
 
@@ -18,6 +19,17 @@ class Room:
         self.main_question: str = ""
         self.spy_question: str = ""
         self.last_result: GameResult | None = None
+        self.created_at: float = time.time()
+        self.updated_at: float = time.time()
+
+    def touch(self) -> None:
+        self.updated_at = time.time()
+
+    def is_stale(
+        self, max_age_seconds: float = 6 * 3600, current_time: float | None = None
+    ) -> bool:
+        now = current_time if current_time is not None else time.time()
+        return (now - self.updated_at) >= max_age_seconds
 
     def is_host(self, player_id: int) -> bool:
         return self.host_id == player_id
@@ -28,6 +40,7 @@ class Room:
         if self.phase != GamePhase.LOBBY and self.phase != GamePhase.GAME_OVER:
             return False
         self.players[player.id] = player
+        self.touch()
         return True
 
     def remove_player(self, player_id: int) -> bool:
@@ -43,6 +56,7 @@ class Room:
         if len(self.players) > 1 and self.spy_count >= len(self.players):
             self.spy_count = max(1, len(self.players) - 1)
 
+        self.touch()
         return True
 
     def set_spy_count(self, count: int) -> bool:
@@ -51,10 +65,12 @@ class Room:
         if len(self.players) > 0 and count >= len(self.players):
             return False
         self.spy_count = count
+        self.touch()
         return True
 
     def set_category(self, category: str | None) -> None:
         self.category = category
+        self.touch()
 
     def start_round(self, question_manager: QuestionManager) -> bool:
         if len(self.players) < 3:
@@ -95,6 +111,7 @@ class Room:
 
         self.phase = GamePhase.QUESTIONING
         self.last_result = None
+        self.touch()
         return True
 
     def submit_answer(self, player_id: int, answer: str) -> bool:
@@ -105,6 +122,7 @@ class Room:
 
         player = self.players[player_id]
         player.answer = answer.strip()
+        self.touch()
         return True
 
     def all_answers_submitted(self) -> bool:
@@ -116,6 +134,7 @@ class Room:
         self.phase = GamePhase.VOTING
         for p in self.players.values():
             p.voted_for = None
+        self.touch()
 
     def cast_vote(self, voter_id: int, target_id: int) -> bool:
         if self.phase != GamePhase.VOTING:
@@ -126,6 +145,7 @@ class Room:
             return False
 
         self.players[voter_id].voted_for = target_id
+        self.touch()
         return True
 
     def all_votes_cast(self) -> bool:
@@ -176,6 +196,7 @@ class Room:
 
         self.last_result = result
         self.phase = GamePhase.GAME_OVER
+        self.touch()
         return result
 
     def reset_for_next_round(self) -> None:
@@ -188,3 +209,4 @@ class Room:
         self.main_question = ""
         self.spy_question = ""
         self.last_result = None
+        self.touch()

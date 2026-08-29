@@ -81,3 +81,26 @@ class RoomManager:
             for pid in list(room.players.keys()):
                 self.player_to_room.pop(pid, None)
             logger.info(f"Closed room {code}")
+
+    def cleanup_stale_rooms(self, max_age_seconds: float = 6 * 3600) -> list[str]:
+        stale_codes = [
+            code
+            for code, room in list(self.rooms.items())
+            if room.is_stale(max_age_seconds)
+        ]
+        for code in stale_codes:
+            logger.info(
+                f"Cleaning up stale room {code} (inactive for > {max_age_seconds}s)"
+            )
+            self.close_room(code)
+
+        # Cleanup any orphaned player_to_room references
+        orphaned_ids = [
+            pid
+            for pid, rcode in list(self.player_to_room.items())
+            if rcode not in self.rooms
+        ]
+        for pid in orphaned_ids:
+            self.player_to_room.pop(pid, None)
+
+        return stale_codes
