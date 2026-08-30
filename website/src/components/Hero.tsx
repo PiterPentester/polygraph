@@ -21,7 +21,7 @@ export function Hero() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
               </span>
-              v0.1 is now live
+              v0.1.1 is now live
             </div>
             <h1 className="text-5xl lg:text-7xl font-extrabold tracking-tight text-neutral-100 mb-6 leading-[1.1]">
               Unmask the spy among your <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">friends.</span>

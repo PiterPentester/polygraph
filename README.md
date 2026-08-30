@@ -42,8 +42,9 @@ sequenceDiagram
    - **Spy(ies)** receive a related question (Question B) without knowing they are the spy!
 4. **Answer Collection**: Players send their answers via private messages to the bot.
 5. **Reveal Phase**: The bot publishes the main question and the numbered list of answers with player names.
-6. **Voting**: Players vote using inline buttons. If the majority votes out the spy, **Innocents win**; if an innocent is kicked or there is a tie, the **Spy wins**!
+6. **Voting**: Players vote using inline buttons. If multiple spies are in the game, innocents must find and vote out all of them to win. If all spies are eliminated, **Innocents win**; if an innocent is kicked or there is a tie at any round, the **Spies win**!
 7. **Rematch & Session Non-Recurrence**: The host can instantly start a rematch with the same players. Used questions will never recur during the room's session.
+
 
 ---
 
