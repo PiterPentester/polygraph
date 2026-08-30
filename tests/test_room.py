@@ -192,3 +192,150 @@ def test_room_timestamp_and_staleness():
     # Calling touch should refresh updated_at
     room.touch()
     assert room.is_stale(max_age_seconds=6 * 3600) is False
+
+
+def test_multi_spy_elimination_innocents_win(mock_question_manager):
+    room = Room(code="TEST05", host_id=100)
+    for uid in [100, 200, 300, 400, 500]:
+        room.add_player(Player(id=uid, full_name=f"Player {uid}"))
+
+    room.set_spy_count(2)
+    room.start_round(mock_question_manager)
+
+    spies = [p for p in room.players.values() if p.is_spy]
+    innocents = [p for p in room.players.values() if not p.is_spy]
+    assert len(spies) == 2
+    assert len(innocents) == 3
+
+    spy1, spy2 = spies[0], spies[1]
+
+    for uid in [100, 200, 300, 400, 500]:
+        room.submit_answer(uid, f"Ans {uid}")
+
+    room.start_voting()
+
+    # Round 1 of voting: all vote for spy1
+    for inc in innocents:
+        assert room.cast_vote(voter_id=inc.id, target_id=spy1.id) is True
+    assert room.cast_vote(voter_id=spy1.id, target_id=spy2.id) is True
+    assert room.cast_vote(voter_id=spy2.id, target_id=spy1.id) is True
+
+    assert room.all_votes_cast() is True
+
+    # Resolve vote 1: spy1 kicked, but spy2 remains -> game continues!
+    res1 = room.resolve_votes()
+    assert res1.game_over is False
+    assert res1.kicked_player.id == spy1.id
+    assert spy1.is_kicked is True
+    assert room.phase == GamePhase.VOTING
+    assert len(res1.remaining_spies) == 1
+    assert res1.remaining_spies[0].id == spy2.id
+
+    # Active players in round 2: innocents + spy2
+    assert room.all_votes_cast() is False
+
+    # spy1 cannot vote or be voted for
+    assert room.cast_vote(voter_id=spy1.id, target_id=spy2.id) is False
+    assert room.cast_vote(voter_id=spy2.id, target_id=spy1.id) is False
+
+    # Round 2 of voting: all remaining players vote for spy2
+    for inc in innocents:
+        assert room.cast_vote(voter_id=inc.id, target_id=spy2.id) is True
+    assert room.cast_vote(voter_id=spy2.id, target_id=innocents[0].id) is True
+
+    assert room.all_votes_cast() is True
+
+    # Resolve vote 2: spy2 kicked -> all spies eliminated -> innocents win!
+    res2 = room.resolve_votes()
+    assert res2.game_over is True
+    assert res2.innocents_won is True
+    assert res2.kicked_player.id == spy2.id
+    assert spy2.is_kicked is True
+    assert len(res2.remaining_spies) == 0
+    assert room.phase == GamePhase.GAME_OVER
+
+
+def test_multi_spy_elimination_spy_wins_on_innocent_kicked(mock_question_manager):
+    room = Room(code="TEST06", host_id=100)
+    for uid in [100, 200, 300, 400]:
+        room.add_player(Player(id=uid, full_name=f"Player {uid}"))
+
+    room.set_spy_count(2)
+    room.start_round(mock_question_manager)
+
+    spies = [p for p in room.players.values() if p.is_spy]
+    innocents = [p for p in room.players.values() if not p.is_spy]
+    spy1, spy2 = spies[0], spies[1]
+    innocent1, innocent2 = innocents[0], innocents[1]
+
+    for uid in [100, 200, 300, 400]:
+        room.submit_answer(uid, f"Ans {uid}")
+
+    room.start_voting()
+
+    # Vote 1: Kick spy1
+    room.cast_vote(innocent1.id, spy1.id)
+    room.cast_vote(innocent2.id, spy1.id)
+    room.cast_vote(spy1.id, innocent1.id)
+    room.cast_vote(spy2.id, spy1.id)
+
+    res1 = room.resolve_votes()
+    assert res1.game_over is False
+    assert res1.kicked_player.id == spy1.id
+
+    # Vote 2: Mistakenly kick innocent1
+    room.cast_vote(innocent1.id, spy2.id)
+    room.cast_vote(innocent2.id, innocent1.id)
+    room.cast_vote(spy2.id, innocent1.id)
+
+    res2 = room.resolve_votes()
+    assert res2.game_over is True
+    assert res2.innocents_won is False
+    assert res2.kicked_player.id == innocent1.id
+    assert room.phase == GamePhase.GAME_OVER
+
+
+def test_multi_spy_elimination_spy_wins_on_tie(mock_question_manager):
+    room = Room(code="TEST07", host_id=100)
+    for uid in [100, 200, 300, 400]:
+        room.add_player(Player(id=uid, full_name=f"Player {uid}"))
+
+    room.set_spy_count(2)
+    room.start_round(mock_question_manager)
+
+    spies = [p for p in room.players.values() if p.is_spy]
+    innocents = [p for p in room.players.values() if not p.is_spy]
+    spy1, spy2 = spies[0], spies[1]
+    innocent1, innocent2 = innocents[0], innocents[1]
+
+    for uid in [100, 200, 300, 400]:
+        room.submit_answer(uid, f"Ans {uid}")
+
+    room.start_voting()
+
+    # Vote 1: Kick spy1
+    room.cast_vote(innocent1.id, spy1.id)
+    room.cast_vote(innocent2.id, spy1.id)
+    room.cast_vote(spy1.id, innocent1.id)
+    room.cast_vote(spy2.id, spy1.id)
+
+    res1 = room.resolve_votes()
+    assert res1.game_over is False
+    assert res1.kicked_player.id == spy1.id
+
+    # Vote 2: 1 vote for spy2, 1 vote for innocent1, 1 vote for innocent2 -> 3-way tie (1 each)
+    room.cast_vote(innocent1.id, spy2.id)
+    room.cast_vote(innocent2.id, innocent1.id)
+    room.cast_vote(spy2.id, innocent2.id)
+
+    res2 = room.resolve_votes()
+    assert res2.game_over is True
+    assert res2.tied is True
+    assert res2.innocents_won is False
+    assert room.phase == GamePhase.GAME_OVER
+
+    # Reset for next round
+    room.reset_for_next_round()
+    assert room.phase == GamePhase.LOBBY
+    assert all(not p.is_kicked for p in room.players.values())
+    assert all(p.voted_for is None for p in room.players.values())

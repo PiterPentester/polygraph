@@ -101,3 +101,33 @@ def test_category_keyboard():
     assert "set_category:Hobbies" in cat_datas
     assert "set_category:Movies" in cat_datas
     assert "back_to_lobby" in cat_datas
+
+
+def test_spy_eliminated_message_and_kicked_voting_kb():
+    room = Room(code="AB12CD", host_id=1)
+    p1 = Player(id=1, full_name="Player One")
+    p2 = Player(id=2, full_name="Spy One", is_spy=True)
+    p3 = Player(id=3, full_name="Spy Two", is_spy=True)
+    p4 = Player(id=4, full_name="Player Four")
+    for p in [p1, p2, p3, p4]:
+        room.add_player(p)
+
+    # Spy 1 is kicked
+    p2.is_kicked = True
+    msg = messages.spy_eliminated_text(
+        kicked_player=p2,
+        remaining_spies_count=1,
+        vote_counts={2: 3, 3: 1},
+        players=room.players,
+    )
+    assert "Spy One" in msg
+    assert "1" in msg
+    assert "Викрито шпигуна" in msg
+
+    # Voting keyboard should exclude voter 1 and kicked player 2
+    vote_kb = keyboards.voting_kb(room, voter_id=1)
+    vote_datas = [btn.callback_data for row in vote_kb.inline_keyboard for btn in row]
+    assert "vote:1" not in vote_datas
+    assert "vote:2" not in vote_datas  # Kicked!
+    assert "vote:3" in vote_datas
+    assert "vote:4" in vote_datas

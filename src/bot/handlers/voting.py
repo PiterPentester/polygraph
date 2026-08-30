@@ -20,6 +20,13 @@ async def handle_cast_vote(
         await callback.answer("Голосування не активно.", show_alert=True)
         return
 
+    voter_player = room.players.get(user.id)
+    if not voter_player or voter_player.is_kicked:
+        await callback.answer(
+            "Ви вибули з гри і не можете голосувати.", show_alert=True
+        )
+        return
+
     target_id = int(callback.data.split(":")[1])
     if target_id == user.id:
         await callback.answer("Ви не можете голосувати проти себе!", show_alert=True)
@@ -28,6 +35,10 @@ async def handle_cast_vote(
     target_player = room.players.get(target_id)
     if not target_player:
         await callback.answer("Гравця не знайдено.", show_alert=True)
+        return
+
+    if target_player.is_kicked:
+        await callback.answer("Цей гравець уже вибув з гри.", show_alert=True)
         return
 
     success = room.cast_vote(voter_id=user.id, target_id=target_id)
@@ -48,18 +59,40 @@ async def handle_cast_vote(
     # If all votes are in, calculate and broadcast results
     if room.all_votes_cast():
         result = room.resolve_votes()
-        result_text = messages.game_result_text(result)
 
-        for p in room.players.values():
-            try:
-                await bot.send_message(
-                    p.id,
-                    result_text,
-                    reply_markup=keyboards.game_over_kb(room, p.id),
-                    parse_mode="HTML",
-                )
-            except Exception as e:
-                logger.error(f"Failed to send game result to {p.id}: {e}")
+        if result.game_over:
+            result_text = messages.game_result_text(result)
+            for p in room.players.values():
+                try:
+                    await bot.send_message(
+                        p.id,
+                        result_text,
+                        reply_markup=keyboards.game_over_kb(room, p.id),
+                        parse_mode="HTML",
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to send game result to {p.id}: {e}")
+        else:
+            # A spy was kicked, but more spies remain!
+            spy_text = messages.spy_eliminated_text(
+                kicked_player=result.kicked_player,
+                remaining_spies_count=len(result.remaining_spies),
+                vote_counts=result.vote_counts,
+                players=room.players,
+            )
+            for p in room.players.values():
+                try:
+                    kb = keyboards.voting_kb(room, p.id) if not p.is_kicked else None
+                    await bot.send_message(
+                        p.id,
+                        spy_text,
+                        reply_markup=kb,
+                        parse_mode="HTML",
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Failed to send spy elimination prompt to {p.id}: {e}"
+                    )
 
 
 @router.callback_query(lambda c: c.data == "play_again")

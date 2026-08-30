@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 
 
@@ -23,6 +23,7 @@ class Player:
     full_name: str
     username: str | None = None
     is_spy: bool = False
+    is_kicked: bool = False
     question: str = ""
     answer: str | None = None
     voted_for: int | None = None
@@ -44,3 +45,5 @@ class GameResult:
     main_question: str
     spy_question: str
     tied: bool = False
+    game_over: bool = True
+    remaining_spies: list[Player] = field(default_factory=list)

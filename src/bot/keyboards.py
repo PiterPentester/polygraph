@@ -120,8 +120,8 @@ def kick_player_kb(room: Room) -> InlineKeyboardMarkup:
 def voting_kb(room: Room, voter_id: int) -> InlineKeyboardMarkup:
     buttons = []
     for p in room.players.values():
-        # Prevent self-voting
-        if p.id == voter_id:
+        # Prevent self-voting and voting for kicked players
+        if p.id == voter_id or p.is_kicked:
             continue
         status = (
             " (Ваш вибір)"

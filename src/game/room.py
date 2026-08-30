@@ -94,6 +94,7 @@ class Room:
         player_list = list(self.players.values())
         for p in player_list:
             p.is_spy = False
+            p.is_kicked = False
             p.answer = None
             p.voted_for = None
             p.question = ""
@@ -143,19 +144,21 @@ class Room:
             return False
         if voter_id == target_id:
             return False
+        if self.players[voter_id].is_kicked or self.players[target_id].is_kicked:
+            return False
 
         self.players[voter_id].voted_for = target_id
         self.touch()
         return True
 
     def all_votes_cast(self) -> bool:
-        return len(self.players) > 0 and all(
-            p.voted_for is not None for p in self.players.values()
-        )
+        active = [p for p in self.players.values() if not p.is_kicked]
+        return len(active) > 0 and all(p.voted_for is not None for p in active)
 
     def resolve_votes(self) -> GameResult:
-        vote_counts: dict[int, int] = {pid: 0 for pid in self.players}
-        for voter in self.players.values():
+        active_players = [p for p in self.players.values() if not p.is_kicked]
+        vote_counts: dict[int, int] = {p.id: 0 for p in active_players}
+        for voter in active_players:
             if voter.voted_for and voter.voted_for in vote_counts:
                 vote_counts[voter.voted_for] += 1
 
@@ -177,25 +180,68 @@ class Room:
                 main_question=self.main_question,
                 spy_question=self.spy_question,
                 tied=True,
+                game_over=True,
+                remaining_spies=[p for p in spies if not p.is_kicked],
             )
+            self.phase = GamePhase.GAME_OVER
         else:
             kicked_id = top_suspects[0]
             kicked_player = self.players[kicked_id]
-            innocents_won = kicked_player.is_spy
+            kicked_player.is_kicked = True
 
-            result = GameResult(
-                innocents_won=innocents_won,
-                spies=spies,
-                innocents=innocents,
-                kicked_player=kicked_player,
-                vote_counts=vote_counts,
-                main_question=self.main_question,
-                spy_question=self.spy_question,
-                tied=False,
-            )
+            if not kicked_player.is_spy:
+                # Innocent kicked -> Spies win immediately!
+                result = GameResult(
+                    innocents_won=False,
+                    spies=spies,
+                    innocents=innocents,
+                    kicked_player=kicked_player,
+                    vote_counts=vote_counts,
+                    main_question=self.main_question,
+                    spy_question=self.spy_question,
+                    tied=False,
+                    game_over=True,
+                    remaining_spies=[p for p in spies if not p.is_kicked],
+                )
+                self.phase = GamePhase.GAME_OVER
+            else:
+                # Spy kicked -> Check if there are remaining spies
+                remaining_spies = [p for p in spies if not p.is_kicked]
+                if len(remaining_spies) == 0:
+                    # All spies found! Innocents win!
+                    result = GameResult(
+                        innocents_won=True,
+                        spies=spies,
+                        innocents=innocents,
+                        kicked_player=kicked_player,
+                        vote_counts=vote_counts,
+                        main_question=self.main_question,
+                        spy_question=self.spy_question,
+                        tied=False,
+                        game_over=True,
+                        remaining_spies=[],
+                    )
+                    self.phase = GamePhase.GAME_OVER
+                else:
+                    # More spies remain! Voting continues!
+                    result = GameResult(
+                        innocents_won=False,
+                        spies=spies,
+                        innocents=innocents,
+                        kicked_player=kicked_player,
+                        vote_counts=vote_counts,
+                        main_question=self.main_question,
+                        spy_question=self.spy_question,
+                        tied=False,
+                        game_over=False,
+                        remaining_spies=remaining_spies,
+                    )
+                    self.phase = GamePhase.VOTING
+                    # Reset votes for next round
+                    for p in self.players.values():
+                        p.voted_for = None
 
         self.last_result = result
-        self.phase = GamePhase.GAME_OVER
         self.touch()
         return result
 
@@ -203,6 +249,7 @@ class Room:
         self.phase = GamePhase.LOBBY
         for p in self.players.values():
             p.is_spy = False
+            p.is_kicked = False
             p.answer = None
             p.voted_for = None
             p.question = ""
